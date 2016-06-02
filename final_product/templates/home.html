@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script>
+/*
+  following two methods enable POST with CSRF protection
+*/
+function csrfSafeMethod(method) {
+    // these HTTP methods do not require CSRF protection
+    return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+}
+function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie != '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = jQuery.trim(cookies[i]);
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+/*
+  button listener for save button, all of which are "btn-secondary"
+*/
+$(document).ready(function(){
+    $("#newClick").click(function(){ //show new entry form when new is clicked
+        $("#newEntry").show();
+        $("#newSubmit").show();
+        $("#newCancel").show();
+        $("#newClick").hide();
+    });
+    $("#newCancel").click(function(){ //cancel creating a new rating
+        $("#newEntry").hide();
+        $("#newSubmit").hide();
+        $("#newCancel").hide();
+        $("#newClick").show();
+    });  
+    $(".btn-secondary").click(function(){ //sensitive to the pressing of the delete button, which is always btn-secondary class
+        var $name = $(this).closest("tr")   // Finds the closest row with beer_name
+                       .find(".beer_name")    
+                       .text(); 
+        var $notes = $(this).closest("tr")   // Finds the closest row with beer_notes
+                       .find(".beer_notes")     
+                       .text();  
+        var csrftoken = getCookie('csrftoken'); //setup ajax call
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                }
+            }
+        });
+        $.ajax({ //go through with ajax call
+            type: 'POST',
+            url: 'rating/delete/',
+            data: {
+              name: $name,
+              notes: $notes
+            },
+            success: function() {
+              location.reload();
+            }
+        });              
+    });
+    $("#newSubmit").click(function(){ //this listener is to check if there are any empty values and warn the user accordingly
+      var correct = 1;
+      $("#newEntry").each(function () { 
+        $('td', this).each(function () {
+            value = $(this).find(":input").val();
+            if(value === '') {
+              correct=0;
+            } 
+         });
+      });
+      if(parseInt(correct,5) === 0) {
+        alert("Form is invalid. Please fill in all values, and try again.");
+      }
+    }); 
+});
+</script>
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-sm-10 col-sm-offset-1">
+        <h2>Ratings</h2>
+        <table class="table table-bordered">
+          <thead>
+          <tr>
+            <th>Beer Name</th>
+            <th>Beer Rating</th>
+            <th>Beer Brewer </th>
+            <th>Notes</th>
+            <th>Delete?</th>
+          </tr>
+          </thead>
+          <tbody>
+          {% for rating in ratings %}
+            <tr>
+              <td class="beer_name">{{ rating.beer_name }}</td>
+              <td>{{ rating.score }} <a href="{% url 'rating-edit' %}">Edit</a> </td>
+              <td>{{ rating.brewer_name }}</td>
+              <td class="beer_notes">{{ rating.notes }}</td>
+              <td> <button id="deleteEntry" class="btn btn-secondary" type="submit">Delete</button></td>
+            </tr>
+          {% endfor %}
+          <form  role="form" method="post">
+          {% csrf_token %}
+            <tr id="newEntry" style="display: none;">
+              <td > {{ form.beer_name }}</td>
+              <td> {{ form.score }}</td>
+              <td> {{ form.brewer_name }}</td>
+              <td> {{ form.notes }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div><a id="newClick" class="btn btn-primary">New</a>  <button id="newSubmit" style="display: none;" type="submit" class="btn btn-primary">Submit</button> <a id="newCancel" style="display: none;" href="{% url 'rating-home' %}" class="btn btn-primary">Cancel</a></div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}

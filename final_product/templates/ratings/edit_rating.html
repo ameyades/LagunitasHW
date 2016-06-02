@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script>
+/*
+  following two methods enable POST with CSRF protection
+*/
+function csrfSafeMethod(method) {
+    // these HTTP methods do not require CSRF protection
+    return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+}
+function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie != '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = jQuery.trim(cookies[i]);
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+/*
+  button listener for save button, all of which are "btn-secondary"
+*/
+$(document).ready(function(){
+  $(".btn-secondary").click(function(){
+      var bname, bscore, bbrewer, bnotes = null;
+      var value = null; //input from html
+      var colCount = 1; //columm count
+      var correct = 1;  //1 or 0, depending on if we have a valid input
+      var myRow = $(this).closest("tr"); //get row of this save button
+      var rowIndex =  $(this).closest("tr").prevAll().length; //get the number of the row (from the top of the page) 
+      // Iterate through each column of this row, and get corresponding value          
+      $('td', myRow).each(function () {
+          value = $(this).find(":input").val();
+          if(value === '' && (parseInt(colCount, 10) != 5) ) {
+            //if  there is a blank input, we flag correct as false
+            correct=0;        
+          } 
+          if(parseInt(colCount,5) === 1) {
+            bname = value;
+          } else if(parseInt(colCount,5) === 2) {
+            bscore = value;
+          } else if(parseInt(colCount,5) === 3) {
+            bbrewer = value;
+          } else if(parseInt(colCount,5) === 4) {
+            bnotes = value;
+          }
+          colCount = colCount + 1;
+      }); 
+      var csrftoken = getCookie('csrftoken'); //setup ajax call
+      $.ajaxSetup({
+          beforeSend: function(xhr, settings) {
+            if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+              xhr.setRequestHeader("X-CSRFToken", csrftoken);
+            }
+          }
+      });
+      $.ajax({ //go through with ajax call
+            type: 'POST',
+            url: 'rating/edit/',
+            data: {
+                rname: bname,
+                score: bscore,
+                brewer: bbrewer,
+                notes: bnotes,
+                row: rowIndex, 
+                success: correct
+            }, 
+            success: function() {
+            },
+            timeout: 5000
+      }); 
+      if(parseInt(correct,5) === 0) { //if we find a blank value, we let the user know
+        alert("Form is invalid. Please fill in all values, and try again.");
+      }             
+  });
+});
+</script>
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-sm-10 col-sm-offset-1">
+        <h2>Edit Ratings</h2>
+        <form role="form" method="post">
+        <table class="table table-bordered">  
+        <thead>
+          <tr>
+            <th>Beer Name</th>
+            <th>Beer Rating </th>
+            <th>Beer Brewer </th>
+            <th>Notes</th>
+            <th>Save?</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% csrf_token %}   
+          {% for form in formset %}
+          <tr class="toBeEdited" >
+            <td class="beer_name"> {{ form.beer_name }}</td>
+            <td class="score">  {{ form.score }}</td>
+            <td class="brewer_name">{{ form.brewer_name }}</td>
+            <td class="beer_notes">  {{ form.notes }} </td>
+            <td> <button id="SaveEntry" class="btn btn-secondary" type="submit">Save</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        </table>
+        <div><a href="{% url 'rating-home' %}" class="btn btn-primary">Cancel</a></div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}
